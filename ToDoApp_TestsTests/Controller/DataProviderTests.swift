@@ -12,19 +12,27 @@ final class DataProviderTests: XCTestCase {
     
     var sut: DataProvider!
     var tableView: UITableView!
-
+    
+    var controller: TaskListViewController! // мы должны получить tableview  co storyboard, чтобы получить tableview мы должны получить controller
+    
+    
     override func setUp() {
         sut = DataProvider()
         sut.taskManager = TaskManager()
         
-        tableView = UITableView()
+        let storyboard = UIStoryboard(name: "Main", bundle: nil)
+        controller = storyboard.instantiateViewController(withIdentifier: String(describing: TaskListViewController.self)) as? TaskListViewController
+        
+        controller.loadViewIfNeeded()
+        
+        tableView = controller.tableView
         tableView.dataSource = sut
     }
-
+    
     override func tearDown() {
         // Put teardown code here. This method is called after the invocation of each test method in the class.
     }
-
+    
     func testNumberOfSectionsIsTwo() { //два типа задач - выполненные и которые нужно выполнить, и их разделяю на две секции
         let numberOfSections = tableView.numberOfSections
         
@@ -66,4 +74,31 @@ final class DataProviderTests: XCTestCase {
         XCTAssertTrue(cell is TaskCell)
     }
     
+    func testCellForRowAtIndexPathDequeuesCellFromTableView() { // метод CellForRowAtIndexPath переиспользует ячейку из tableview
+        let mockTableView = MockTableView()
+        mockTableView.dataSource = sut
+        mockTableView.register(TaskCell.self, forCellReuseIdentifier: String(describing: TaskCell.self)) //регистрируем ячейку
+        
+        sut.taskManager?.add(task: Task(title: "Foo"))
+        mockTableView.reloadData()
+        
+        _ = mockTableView.cellForRow(at: IndexPath(row: 0, section: 0))
+        
+        XCTAssertTrue(mockTableView.cellIsDequeued)
+        
+    }
 }
+    
+    extension DataProviderTests {
+        class MockTableView: UITableView { //ложный tableview
+            var cellIsDequeued = false
+            
+            override func dequeueReusableCell(withIdentifier identifier: String, for indexPath: IndexPath) -> UITableViewCell {
+                cellIsDequeued = true
+                
+                return super.dequeueReusableCell(withIdentifier: identifier, for: indexPath)
+            }
+        }
+    }
+    
+
